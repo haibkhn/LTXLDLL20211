@@ -4,24 +4,20 @@ import numpy as np
 df = pd.read_csv('data.csv')
 
 def get_director_id(s):
-    s1 = s
-    s2 = 'Person id:'
-    start = s1.index(s2) + len(s2)
-    if s1[start:start+7].isnumeric():
-        return s1[start:start+7]
-    else:
-        return np.nan
+    start = find(s, '<Person id:')
+    end = find(s, '[http]')
+    id_list = []
+    for i in range(len(end)):
+        id_list.append(s[start[i]+11:end[i]])
+    return id_list
 
 def get_director_name(s):
-    s1 = s
-    s2 = 'name:_'
-    s3 = '_>]'
-    start = s1.index(s2) + len(s2)
-    end = s1.index(s3)
-    try:
-        return s1[start:end]
-    except:
-        return np.nan
+    start = find(s, 'name:_')
+    end = find(s, '_>')
+    name_list = []
+    for i in range(len(end)):
+        name_list.append(s[start[i]+6:end[i]])
+    return name_list
     
 def find(s, ch):
     l = []
@@ -72,26 +68,42 @@ def get_runtime(s):
     s3 = s2[:len(s2)-2]
     return int(s3)
 
+director_name_list = []
+director_id_list = []
+cast_name_list = []
+cast_id_list = []
+
+
 for i in df.index:
     s = df.loc[i,'director']
+    
     try:
-        df.loc[i,'director_name'] = get_director_name(s)
+        director_name_list.append(get_director_name(s))
     except:
-        df.loc[i,'director_name'] = np.nan
+        director_name_list.append(np.nan)
+
     try:
-        df.loc[i,'director_id'] = get_director_id(s)
+        director_id_list.append(get_director_id(s))
     except:
-        df.loc[i,'director_name'] = np.nan
+        director_id_list.append(np.nan)
         
     s = df.loc[i,'cast']
+    
     try:
-        df.loc[i,'cast_names'] = [[get_cast_names(s)]]
+        cast_name_list.append(get_cast_names(s))
     except:
-        df.loc[i,'cast_names'] = np.nan
+        cast_name_list.append(np.nan)
+            
     try:
-        df.loc[i,'cast_ids'] = [[get_cast_ids(s)]]
+        cast_id_list.append(get_cast_ids(s))
     except:
-        df.loc[i,'cast_names'] = np.nan
+        cast_id_list.append(np.nan)
+    
+    s = df.loc[i,'year']
+    try:
+        df['year'][i] = int(s)
+    except:
+        df['year'][i] = np.nan
 
 for i in df.index:
     s = df.loc[i,'original_air_date']
@@ -101,12 +113,10 @@ for i in df.index:
         d,m,y = get_date(s)
         df.loc[i,'day'] = d 
         df.loc[i,'month'] = m
-        df.loc[i,'year'] = y
     except:
         df.loc[i,'country'] = np.nan
         df.loc[i,'day'] = np.nan
         df.loc[i,'month'] = np.nan
-        df.loc[i,'year'] = np.nan
 
 for i in df.index:
     try:
@@ -140,8 +150,22 @@ for i in df.index:
             df.loc[i, 'sound_mix'] = "Others"
     except:
         s = np.nan
+        
+df['director_id'] = director_id_list
+df['director_name'] = director_name_list
+df['cast_ids'] = cast_id_list
+df['cast_names'] = cast_name_list
 
 df = df[['title','year','rating','runtime','kind','color_info','sound_mix','director_name', 'genre','director_id', 'cast_names', 
          'cast_ids','votes','country','day','month']]
+
 df.dropna(subset = ["rating"], inplace=True)
+
+month_dict = {'Oct':8, 'Dec':12, 'Aug':8, 'Jul':7, 'Feb':2, 'Nov':11, 'Sep':10, 'May':5,'Mar':3, 'Jan':1, 'Jun':6, 'Apr':3}
+day_list = []
+for i in range(1,32):
+    day_list.append(str(i))
+df.month = df.month.map(month_dict).fillna(0)
+df['day'] = df.day.apply(lambda s: int(s) if s in day_list else 0)
+
 df.to_csv('preprocess_data.csv', index =False)
